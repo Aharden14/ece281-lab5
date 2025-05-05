@@ -182,12 +182,11 @@ begin
     );
 
 
-    seg_inst : entity work.sevenseg_decoder
+    seg_inst : sevenseg_decoder
     port map (
-        i_Hex => display_data,    
-        o_seg_n => seg_value     
+        i_hex => display_data,
+        o_seg_n => seg_value
     );
-
 
     -- One-hot digit enable logic based on TDM4 output
     -- One-hot enable based on TDM4 selector
