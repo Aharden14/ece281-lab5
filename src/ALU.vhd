@@ -51,19 +51,19 @@ begin
         variable A, B         : signed(7 downto 0);
     begin
 
-        A_ext := (8 => i_A(7), 7 => i_A(7), 6 => i_A(6), 5 => i_A(5),
-                  4 => i_A(4), 3 => i_A(3), 2 => i_A(2), 1 => i_A(1), 0 => i_A(0));
+        A := signed(i_A);
+        B := signed(i_B);
 
-        B_ext := (8 => i_B(7), 7 => i_B(7), 6 => i_B(6), 5 => i_B(5),
-                  4 => i_B(4), 3 => i_B(3), 2 => i_B(2), 1 => i_B(1), 0 => i_B(0));
-                  
+        A_ext := resize(A, 9);
+        B_ext := resize(B, 9);
+
         case i_op is
             when "000" =>  -- ADD
                 sum := A_ext + B_ext;
                 result <= sum(7 downto 0);
                 carry <= sum(8);
                 -- ADD overflow detection
-                if (i_A(7) = i_B(7)) and (i_A(7) /= sum(7)) then
+                if (A(7) = B(7)) and (A(7) /= sum(7)) then
                     overflow <= '1';
                 else
                     overflow <= '0';
@@ -75,7 +75,7 @@ begin
                 result <= sum(7 downto 0);
                 carry <= sum(8);
                 -- SUB overflow detection
-                if (i_A(7) /= i_B(7)) and (i_A(7) /= sum(7)) then
+                if (A(7) /= B(7)) and (A(7) /= sum(7)) then
                     overflow <= '1';
                 else
                     overflow <= '0';
