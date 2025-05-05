@@ -32,39 +32,41 @@ use IEEE.STD_LOGIC_1164.ALL;
 --use UNISIM.VComponents.all;
 
 entity controller_fsm is
-    Port ( i_reset : in STD_LOGIC;
-           i_adv : in STD_LOGIC;
-           o_cycle : out STD_LOGIC_VECTOR (3 downto 0));
+    Port (
+        i_clk   : in STD_LOGIC;
+        i_reset : in STD_LOGIC;
+        i_adv   : in STD_LOGIC;
+        o_cycle : out STD_LOGIC_VECTOR (3 downto 0)
+    );
 end controller_fsm;
 
-architecture Behavioral of controller_fsm is
-    type state_type is (S0, S1, S2, S3);
-    signal state : state_type := S0;
+architecture FSM of controller_fsm is
+    signal w_cycle     : std_logic_vector(3 downto 0) := "1000";
+    signal w_prev  : std_logic := '0';
 begin
 
-    process(i_adv)
+     process(i_clk)
     begin
-        if rising_edge(i_adv) then
+        if rising_edge(i_clk) then
             if i_reset = '1' then
-                state <= S0;
+                w_cycle <= "1000";
             else
-                case state is
-                    when S0 => state <= S1;
-                    when S1 => state <= S2;
-                    when S2 => state <= S3;
-                    when S3 => state <= S0;
-                end case;
+                -- detect rising edge on i_adv
+                if i_adv = '1' and w_prev = '0' then
+                    case w_cycle is
+                        when "1000" => w_cycle <= "0001";
+                        when "0001" => w_cycle <= "0010";
+                        when "0010" => w_cycle <= "0100";
+                        when "0100" => w_cycle <= "1000";
+                        when others => w_cycle <= "1000";
+                    end case;
+                end if;
             end if;
+
+            w_prev <= i_adv;
         end if;
     end process;
 
-    -- One-hot output
-    with state select
-        o_cycle <= "0001" when S0,
-                   "0010" when S1,
-                   "0100" when S2,
-                   "1000" when S3,
-                   "0000" when others;
+    o_cycle <= w_cycle;
 
-
-end Behavioral;
+end FSM;
