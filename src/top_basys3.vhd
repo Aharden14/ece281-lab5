@@ -26,38 +26,44 @@ use ieee.numeric_std.all;
 
 entity top_basys3 is
     port (
-        clk     : in std_logic;
-        sw      : in std_logic_vector(7 downto 0);
-        btnU    : in std_logic;
-        btnC    : in std_logic;
-        led     : out std_logic_vector(15 downto 0);
-        seg     : out std_logic_vector(6 downto 0);
-        an      : out std_logic_vector(3 downto 0)
+        clk     :   in std_logic; -- native 100MHz FPGA clock
+        sw      :   in std_logic_vector(7 downto 0); -- operands and opcode
+        btnU    :   in std_logic; -- reset
+        btnC    :   in std_logic; -- fsm cycle
+        btnL    :   in std_logic;
+        
+        -- outputs
+        led :   out std_logic_vector(15 downto 0);
+        -- 7-segment display segments (active-low cathodes)
+        seg :   out std_logic_vector(6 downto 0);
+        -- 7-segment display active-low enables (anodes)
+        an  :   out std_logic_vector(3 downto 0)
     );
 end top_basys3;
 
 architecture top_basys3_arch of top_basys3 is
 
-    signal slow_clk     : std_logic;
-    signal cycle        : std_logic_vector(3 downto 0);
-    signal operand_A    : std_logic_vector(7 downto 0);
-    signal operand_B    : std_logic_vector(7 downto 0);
+    signal w_slow_clk     : std_logic;
+    signal w_cycle        : std_logic_vector(3 downto 0);
+    signal w_operand_A    : std_logic_vector(7 downto 0);
+    signal w_operand_B    : std_logic_vector(7 downto 0);
+    
     signal alu_result   : std_logic_vector(7 downto 0);
     signal alu_flags    : std_logic_vector(3 downto 0);
-    signal sign         : std_logic;
-    signal hundreds     : std_logic_vector(3 downto 0);
-    signal tens         : std_logic_vector(3 downto 0);
-    signal ones         : std_logic_vector(3 downto 0);
-    signal display_data : std_logic_vector(3 downto 0);
-    signal sel          : std_logic_vector(3 downto 0);
-    signal signed_digit : std_logic_vector(3 downto 0);
-    signal an_pre    : std_logic_vector(3 downto 0);
-    signal seg_value : std_logic_vector(6 downto 0);  
-    signal btnC_sync_0 : std_logic;
-    signal btnC_sync_1 : std_logic;
-    signal btnC_edge : std_logic;
-    signal reg_A, reg_B : std_logic_vector(7 downto 0);
-
+    
+    signal w_sign         : std_logic;
+    signal w_hundreds     : std_logic_vector(3 downto 0);
+    signal w_tens         : std_logic_vector(3 downto 0);
+    signal w_ones         : std_logic_vector(3 downto 0);
+    
+    signal w_Hex : std_logic_vector(3 downto 0);
+    signal w_sel          : std_logic_vector(3 downto 0);
+    signal w_seg : std_logic_vector(6 downto 0);  
+    signal w_adv : std_logic;
+    signal w_reset : std_logic;
+    
+    signal w_bin : std_logic_vector (7 downto 0);
+    signal w_btnC_prev : std_logic;
     
 
     component controller_fsm
@@ -110,7 +116,8 @@ architecture top_basys3_arch of top_basys3 is
             i_D0    : in std_logic_vector(K_WIDTH-1 downto 0);
             o_data  : out std_logic_vector(K_WIDTH-1 downto 0);
             o_sel   : out std_logic_vector(3 downto 0);
-            i_clk   : in std_logic
+            i_clk   : in std_logic;
+            i_reset : in std_logic
         );
     end component;
 
@@ -124,48 +131,25 @@ architecture top_basys3_arch of top_basys3 is
 begin
 
     clkdiv_inst : clock_divider
-        generic map (K_DIV => 50000000)
+        generic map (K_DIV => 100000)
         port map (
             i_clk   => clk,
-            i_reset => btnU,
-            o_clk   => slow_clk
+            i_reset => btnL,
+            o_clk   => w_slow_clk
         );
 
-    process(clk)
-    begin
-        if rising_edge(clk) then
-            btnC_sync_0 <= btnC;
-            btnC_sync_1 <= btnC_sync_0;
-            btnC_edge   <= btnC_sync_0 and not btnC_sync_1;  -- rising edge detector
-        end if;
-    end process;
 
     fsm_inst : controller_fsm
         port map (
-            i_reset => btnU,
-            i_adv   => btnC_edge,
-            o_cycle => cycle
+            i_adv   => w_adv,
+            o_cycle => w_cycle,
+            i_reset => w_reset
         );
-        
-     process(clk)
-     begin
-        if rising_edge(clk) then
-            if cycle(1) = '1' then
-                reg_A <= sw;
-            elsif cycle(2) = '1' then
-                reg_B <= sw;
-            end if;
-        end if;
-    end process;
-
-
-    operand_A <= sw(7 downto 0) when cycle(1) = '1' else (others => '0');
-    operand_B <= sw(7 downto 0) when cycle(2) = '1' else (others => '0');
 
     alu_inst : ALU
         port map (
-            i_A => reg_A,
-            i_B => reg_B,
+            i_A      => w_operand_A,
+            i_B      => w_operand_B,
             i_op     => sw(2 downto 0),
             o_result => alu_result,
             o_flags  => alu_flags
@@ -173,54 +157,90 @@ begin
 
     twos_compliment_inst : twos_comp
         port map (
-            i_bin  => alu_result,
-            o_sign => sign,
-            o_hund => hundreds,
-            o_tens => tens,
-            o_ones => ones
+            i_bin  => w_bin,
+            o_sign => w_sign,
+            o_hund => w_hundreds,
+            o_tens => w_tens,
+            o_ones => w_ones
         );
 
-    signed_digit <= "1111" when sign = '1' else "0000";
     
     -- TDM4 display
     tdm_inst : TDM4
     generic map (K_WIDTH => 4)
     port map (
-        i_D3   => signed_digit,
-        i_D2   => hundreds,
-        i_D1   => tens,
-        i_D0   => ones,
-        o_data => display_data,
-        o_sel  => sel,
-        i_clk  => slow_clk
+        i_D3   => x"0",
+        i_D2   => w_hundreds,
+        i_D1   => w_tens,
+        i_D0   => w_ones,
+        o_data => w_Hex,
+        o_sel  => w_sel,
+        i_clk  => w_slow_clk,
+        i_reset => w_reset
     );
-
 
     seg_inst : sevenseg_decoder
     port map (
-        i_hex => display_data,
-        o_seg_n => seg_value
+        i_hex => w_Hex,
+        o_seg_n => w_seg
     );
-
-    -- One-hot digit enable logic based on TDM4 output
-    -- One-hot enable based on TDM4 selector
-    with sel(1 downto 0) select
-    an_pre <= "1110" when "00",
-              "1101" when "01",
-              "1011" when "10",
-              "0111" when "11",
-              "1111" when others;
-
     
-    -- Apply blanking for FSM cycle 3
-    an <= "1111" when cycle = "1000" else an_pre;
+   -- Registers ----------------------------------------
+	register_A : process (w_slow_clk, w_cycle(0), w_reset)
+    begin
+        if w_reset = '1' then
+            w_operand_A <= x"00";
+        elsif (rising_edge(w_slow_clk)) then
+            if (w_cycle(0) = '1') then
+                w_operand_A <= sw(7 downto 0);    -- next state becomes current state
+            end if;
+        end if;
+    end process register_A;
     
-    -- Blanking the segment output for FSM cycle 3
-    seg <= "1111111" when cycle = "1000" else seg_value;
-
-led(0) <= slow_clk;
-led(8 downto 1) <= alu_result;
-
+	register_B : process (w_slow_clk, w_cycle(1), w_reset)
+    begin
+        if w_reset = '1' then
+            w_operand_B <= x"00";
+        elsif (rising_edge(w_slow_clk)) then
+            if (w_cycle(1) = '1') then
+                w_operand_B <= sw(7 downto 0);    -- next state becomes current state
+            end if;
+        end if;
+    end process register_B;
+   
+   
+   w_bin <= w_operand_A when w_cycle = "0001" else
+	         w_operand_B when w_cycle = "0010" else
+	         alu_result when w_cycle = "0100" else
+	         x"00";
+	         
+    seg <= w_seg when (w_sel = "1110" or w_sel = "1101" or w_sel = "1011") else
+           "1111111" when w_sign = '0' else  -- assumes 0 = positive
+           "0111111";                        -- negative sign
+	       
+	an <= "1111" when w_cycle(3) = '1' else
+	      w_sel;
+	
+	led(3 downto 0) <= w_cycle;
+	led(15 downto 12) <= alu_flags;
+	
+	led(11 downto 4) <= (others => '0');
+	
+	w_reset <= btnU;
+	 
+	
+    process(w_slow_clk)
+        begin
+            if rising_edge(w_slow_clk) then
+                if btnC = '1' and w_btnC_prev = '0' then
+                    w_adv <= '1';  -- Rising edge of button detected
+                else
+                    w_adv <= '0';  -- Clear after one clock cycle
+                end if;
+                w_btnC_prev <= btnC;
+            end if;
+    end process;
+	
     
 end top_basys3_arch;
 
