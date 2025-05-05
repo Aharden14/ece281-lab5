@@ -190,12 +190,13 @@ begin
 
     -- One-hot digit enable logic based on TDM4 output
     -- One-hot enable based on TDM4 selector
-    with sel select
-        an_pre <= "1110" when "00",
-                  "1101" when "01",
-                  "1011" when "10",
-                  "0111" when "11",
-                  "1111" when others;
+    with sel(1 downto 0) select
+    an_pre <= "1110" when "00",
+              "1101" when "01",
+              "1011" when "10",
+              "0111" when "11",
+              "1111" when others;
+
     
     -- Apply blanking for FSM cycle 3
     an <= "1111" when cycle = "1000" else an_pre;
