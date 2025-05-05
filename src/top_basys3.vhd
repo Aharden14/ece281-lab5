@@ -56,6 +56,8 @@ architecture top_basys3_arch of top_basys3 is
     signal btnC_sync_0 : std_logic;
     signal btnC_sync_1 : std_logic;
     signal btnC_edge : std_logic;
+    signal reg_A, reg_B : std_logic_vector(7 downto 0);
+
     
 
     component controller_fsm
@@ -144,14 +146,26 @@ begin
             i_adv   => btnC_edge,
             o_cycle => cycle
         );
+        
+     process(clk)
+     begin
+        if rising_edge(clk) then
+            if cycle(1) = '1' then
+                reg_A <= sw;
+            elsif cycle(2) = '1' then
+                reg_B <= sw;
+            end if;
+        end if;
+    end process;
+
 
     operand_A <= sw(7 downto 0) when cycle(1) = '1' else (others => '0');
     operand_B <= sw(7 downto 0) when cycle(2) = '1' else (others => '0');
 
     alu_inst : ALU
         port map (
-            i_A      => operand_A,
-            i_B      => operand_B,
+            i_A => reg_A,
+            i_B => reg_B,
             i_op     => sw(2 downto 0),
             o_result => alu_result,
             o_flags  => alu_flags
