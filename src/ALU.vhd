@@ -43,49 +43,48 @@ architecture Behavioral of ALU is
 begin
 
     process(i_A, i_B, i_op)
-        variable A_ext, B_ext : signed(8 downto 0);
-        variable sum          : signed(8 downto 0);
-        variable A, B         : signed(7 downto 0);
+        -- Signed & Unsigned variables
+        variable A_s, B_s     : signed(7 downto 0);
+        variable A_u, B_u     : unsigned(7 downto 0);
+        variable sum_s        : signed(8 downto 0);
+        variable sum_u        : unsigned(8 downto 0);
         variable result       : signed(7 downto 0);
         variable carry        : std_logic := '0';
         variable overflow     : std_logic := '0';
     begin
-        A := signed(i_A);
-        B := signed(i_B);
-
-        A_ext := resize(A, 9);
-        B_ext := resize(B, 9);
+        A_s := signed(i_A);
+        B_s := signed(i_B);
+        A_u := unsigned(i_A);
+        B_u := unsigned(i_B);
 
         case i_op is
             when "000" =>  -- ADD
-                sum := A_ext + B_ext;
-                result := sum(7 downto 0);
-                carry := sum(8);
-                -- ADD overflow: same sign inputs, different sign output
-                if (A(7) = B(7)) and (A(7) /= sum(7)) then
+                sum_u := resize(A_u, 9) + resize(B_u, 9);
+                result := signed(sum_u(7 downto 0));
+                carry := sum_u(8);
+                if (A_s(7) = B_s(7)) and (A_s(7) /= result(7)) then
                     overflow := '1';
                 else
                     overflow := '0';
                 end if;
 
             when "001" =>  -- SUB
-                sum := A_ext - B_ext;
-                result := sum(7 downto 0);
-                carry := sum(8);
-                -- SUB overflow: different sign inputs, result sign != A
-                if (A(7) /= B(7)) and (A(7) /= sum(7)) then
+                sum_u := resize(A_u, 9) - resize(B_u, 9);
+                result := signed(sum_u(7 downto 0));
+                carry := sum_u(8);  -- In subtraction, this means "no borrow" = 1
+                if (A_s(7) /= B_s(7)) and (A_s(7) /= result(7)) then
                     overflow := '1';
                 else
                     overflow := '0';
                 end if;
 
             when "010" =>  -- AND
-                result := A and B;
+                result := A_s and B_s;
                 carry := '0';
                 overflow := '0';
 
             when "011" =>  -- OR
-                result := A or B;
+                result := A_s or B_s;
                 carry := '0';
                 overflow := '0';
 
@@ -101,7 +100,7 @@ begin
         -- Set flags: N Z C V (bit 3 downto 0)
         o_flags(3) <= result(7);  -- N = sign bit
         if result = to_signed(0, 8) then
-            o_flags(2) <= '1';    -- Z = zero
+            o_flags(2) <= '1';    -- Z
         else
             o_flags(2) <= '0';
         end if;
@@ -110,3 +109,4 @@ begin
     end process;
 
 end Behavioral;
+

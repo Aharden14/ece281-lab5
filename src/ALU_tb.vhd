@@ -97,6 +97,20 @@ begin
         assert w_flags  = "0100"             -- N=0 Z=1 C=0 V=0
             report "ADD 0+0: wrong NZCV" severity error;
 
+        -------------------------------------------------------------------------------
+        --  ADD - 130 + 130 = 260 (0x82 + 0x82 = 0x04 with carry and overflow)
+        -------------------------------------------------------------------------------
+        w_A  <= x"82";  -- 130
+        w_B  <= x"82";  -- 130
+        w_op <= OP_ADD;
+        wait for k_step;
+        
+        assert w_result = x"04"
+            report "ADD 130+130: wrong result" severity error;
+        
+        assert w_flags = "0011"  -- N=0 Z=0 C=1 V=1
+            report "ADD 130+130: wrong NZCV" severity error;
+        
         ----------------------------------------------------------------------------
         --  2. ADD - normal, no carry, no overflow  (5 + 3 = 8)
         ----------------------------------------------------------------------------
