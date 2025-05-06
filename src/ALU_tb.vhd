@@ -4,6 +4,12 @@
 --  • Exercises the four Table 5-1 operations (Add, Sub, And, Or)
 --  • Verifies both the data result and the NZCV flag vector
 ----------------------------------------------------------------------------------
+----------------------------------------------------------------------------------
+--  ALU Test-bench
+--  • Targets the 8-bit ALU of DDCA-RISC-V (Fig. 5-17)
+--  • Exercises the four Table 5-1 operations (Add, Sub, And, Or)
+--  • Verifies both the data result and the NZCV flag vector
+----------------------------------------------------------------------------------
 
 library ieee;
     use ieee.std_logic_1164.all;
@@ -63,6 +69,17 @@ begin
         begin
             return std_logic_vector(to_unsigned(val, 8));
         end function;
+
+        -- local helper to check for undefined bits in a vector
+        impure function has_undefined(val : std_logic_vector) return boolean is
+        begin
+            for i in val'range loop
+                if val(i) /= '0' and val(i) /= '1' then
+                    return true;
+                end if;
+            end loop;
+            return false;
+        end function;
     begin
         ----------------------------------------------------------------------------
         --  1. ADD - zero result (0 + 0)
@@ -71,6 +88,9 @@ begin
         w_B  <= to_vec(0);
         w_op <= OP_ADD;
         wait for k_step;
+
+        assert not has_undefined(w_result) and not has_undefined(w_flags)
+            report "ADD 0+0: result or flags contain undefined values!" severity failure;
 
         assert w_result = to_vec(0)
             report "ADD 0+0: wrong result" severity error;
@@ -136,7 +156,7 @@ begin
         w_B  <= to_vec(30);
         w_op <= OP_SUB;
         wait for k_step;
- 
+
         assert w_result = x"7E"              -- incorrectly = 126
             report "SUB 100-30: wrong result" severity error;
         assert w_flags  = "0011"             -- N=0 Z=0 C=1 V=1
@@ -176,3 +196,4 @@ begin
     end process;
 
 end testbench;
+
