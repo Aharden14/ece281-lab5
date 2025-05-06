@@ -17,87 +17,94 @@
 -- Additional Comments:
 -- 
 ----------------------------------------------------------------------------------
-library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+--use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx leaf cells in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
 entity ALU is
-    port (
-        i_A       : in  std_logic_vector(7 downto 0);
-        i_B       : in  std_logic_vector(7 downto 0);
-        i_op      : in  std_logic_vector(2 downto 0);
-        o_result  : out std_logic_vector(7 downto 0);
-        o_flags   : out std_logic_vector(3 downto 0)  -- ZNCV: Zero, Negative, Carry, Overflow
-    );
+    Port ( i_A : in STD_LOGIC_VECTOR (7 downto 0);
+           i_B : in STD_LOGIC_VECTOR (7 downto 0);
+           i_op : in STD_LOGIC_VECTOR (2 downto 0);
+           o_result : out STD_LOGIC_VECTOR (7 downto 0);
+           o_flags : out STD_LOGIC_VECTOR (3 downto 0));
 end ALU;
-architecture behavioral of ALU is
-    component ripple_adder is 
-    Port( A : in STD_LOGIC_VECTOR (3 downto 0);
-          B : in STD_LOGIC_VECTOR (3 downto 0);
-          Cin : in STD_LOGIC;
-          S : out STD_LOGIC_VECTOR (3 downto 0);
-          Cout : out STD_LOGIC
-          );
+
+architecture Behavioral of ALU is
+
+    component ripple_adder is
+    Port ( A : in STD_LOGIC_VECTOR (3 downto 0);
+           B : in STD_LOGIC_VECTOR (3 downto 0);
+           Cin : in STD_LOGIC;
+           S : out STD_LOGIC_VECTOR (3 downto 0);
+           Cout : out STD_LOGIC);
     end component ripple_adder;
-    
-    
-    signal A_low, A_high    :   std_logic_vector(3 downto 0);
-    signal B_low, B_high    :   std_logic_vector(3 downto 0);
-    signal B_mod            :   std_logic_vector(7 downto 0);
-    signal sum_low, sum_high :  std_logic_vector(3 downto 0);
-    signal carry_low : STD_LOGIC;
-    signal carry_high : STD_LOGIC;
-    signal alu_result : STD_LOGIC_VECTOR(7 downto 0);
-    signal Cin       : STD_LOGIC;
-    signal sum_final  : STD_LOGIC_VECTOR(7 downto 0);
-    signal xnor_s     : std_logic;
-    signal xor_s      : std_logic;
-    signal alu_not    : std_logic;
-    signal x_and      : std_logic;
-    
-    
-begin 
-    A_high <= i_A(7 downto 4);
-    A_low  <= i_A(3 downto 0);
-    B_mod <= i_B when i_op /= "001" else (not i_B);
-    B_high <= B_mod(7 downto 4);
-    B_low <= B_mod(3 downto 0);
-    Cin <= '1' when i_op = "001" else '0';
+
+    signal w_result : std_logic_vector (7 downto 0) := x"00";
+    signal w_sum : std_logic_vector (7 downto 0) := x"00";
+    signal w_Cout: std_logic := '0';
+    signal w_carry: std_logic := '0';
+    signal w_B_sum: std_logic_vector (7 downto 0) := x"00";
+
+begin
+
+    ripple_adder_0: ripple_adder
+    port map(
+        A     => i_A(3 downto 0),
+        B     => w_B_sum(3 downto 0),
+        Cin   => i_op(0),
+        S     => w_sum(3 downto 0),
+        Cout  => w_carry
+    );
     
     ripple_adder_1: ripple_adder
-        port map(
-            A => A_low,
-            B => B_low,
-            Cin => Cin,
-            S => sum_low,
-            Cout => carry_low
-            );
+    port map(
+        A     => i_A(7 downto 4),
+        B     => w_B_sum(7 downto 4),
+        Cin   => w_carry,
+        S     => w_sum(7 downto 4),
+        Cout  => w_Cout
+    );                
      
-     ripple_adder_2: ripple_adder
-         port map(
-            A => A_high,
-            B => B_high,
-            Cin => carry_low,
-            S => sum_high,
-            Cout => carry_high
-            );
-            
-     sum_final(7 downto 4) <= sum_high;
-     sum_final(3 downto 0) <= sum_low;
-     with i_op select
-     alu_result <= sum_final when "000",
-                   sum_final when "001",
-                   (B_mod and i_A) when "010",
-                   (B_mod or i_A) when "011",
-                   (others => '0') when others;
-                   
-      o_result <= alu_result;
-      o_flags(3) <= alu_result(7);
-      o_flags(2) <= '1' when alu_result = "00000000" else '0';
-      o_flags(1) <= carry_high and (not i_op(1));
-      alu_not <= not i_op(1);
-      xnor_s <= not (i_A(7) xor i_B(7) xor i_op(0));
-      xor_s <= i_A(7) xor alu_result(7);
-      x_and <= xnor_s and xor_s;
-      o_flags(0) <= x_and and alu_not;
-      
-end behavioral;
+    -- Implement mux for add and subtract
+    with i_op(0) select
+        w_B_sum <= i_B when '0',
+                   (not i_B) when others;
+    
+    
+    -- Implement mux
+    with i_op select
+        w_result <= w_sum when "000", -- Add op code
+                w_sum when "001", -- Subtract op code
+                (i_A and i_B) when "010", -- And op code
+                (i_A or i_B) when "011", -- Or op code
+                x"00" when others; -- Default to 0
+    
+    -- Outputs
+        o_result <= w_result; -- ouput result
+        
+        -- Implement Flags
+    
+        -- N flag
+        o_flags(3) <= w_result(7);
+        
+        -- Z flag
+        o_flags(2) <= (not w_result(7)) and (not w_result(6)) and (not w_result(5)) and (not w_result(4)) and (not w_result(3)) and (not w_result(2)) and (not w_result(1)) and (not w_result(0));
+        
+        -- C flag
+        o_flags(1) <= (not i_op(1))and w_Cout;
+        
+        -- V flag
+        o_flags(0) <=      (not (i_op(0) xor (i_A(7) xor i_B(7))))
+                       and (i_A(7) xor w_sum(7))
+                       and (not i_op(1));
+ 
+end Behavioral;
