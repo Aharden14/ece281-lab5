@@ -43,11 +43,11 @@ architecture Behavioral of ALU is
 begin
 
     process(i_A, i_B, i_op)
-        -- Signed & Unsigned variables
+        -- Signed and Unsigned variables
         variable A_s, B_s     : signed(7 downto 0);
         variable A_u, B_u     : unsigned(7 downto 0);
-        variable sum_s        : signed(8 downto 0);
         variable sum_u        : unsigned(8 downto 0);
+        variable diff_u       : unsigned(8 downto 0);
         variable result       : signed(7 downto 0);
         variable carry        : std_logic := '0';
         variable overflow     : std_logic := '0';
@@ -69,9 +69,9 @@ begin
                 end if;
 
             when "001" =>  -- SUB
-                sum_u := resize(A_u, 9) - resize(B_u, 9);
-                result := signed(sum_u(7 downto 0));
-                carry := sum_u(8);  -- In subtraction, this means "no borrow" = 1
+                diff_u := resize(A_u, 9) - resize(B_u, 9);
+                result := signed(diff_u(7 downto 0));
+                carry := diff_u(8);  -- ✅ Carry = 1 means no borrow
                 if (A_s(7) /= B_s(7)) and (A_s(7) /= result(7)) then
                     overflow := '1';
                 else
@@ -97,16 +97,15 @@ begin
         -- Output result
         o_result <= std_logic_vector(result);
 
-        -- Set flags: N Z C V (bit 3 downto 0)
+        -- Set flags in NZCV order (bits 3 downto 0)
         o_flags(3) <= result(7);  -- N = sign bit
         if result = to_signed(0, 8) then
-            o_flags(2) <= '1';    -- Z
+            o_flags(2) <= '1';    -- Z = 1 if result is zero
         else
             o_flags(2) <= '0';
         end if;
-        o_flags(1) <= carry;      -- C
-        o_flags(0) <= overflow;   -- V
+        o_flags(1) <= carry;      -- C = Carry (or No Borrow)
+        o_flags(0) <= overflow;   -- V = Signed Overflow
     end process;
 
 end Behavioral;
-
