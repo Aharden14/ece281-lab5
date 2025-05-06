@@ -189,32 +189,28 @@ begin
     );
     
    -- Registers ----------------------------------------
-	register_A : process (w_slow_clk, w_cycle(0), w_reset)
+	register_A : process (w_slow_clk, w_cycle(1), w_reset)
     begin
         if w_reset = '1' then
             w_operand_A <= x"00";
-        elsif (rising_edge(w_slow_clk)) then
-            if (w_cycle(0) = '1') then
+        elsif (rising_edge(w_cycle(1))) then
                 w_operand_A <= sw(7 downto 0);    -- next state becomes current state
-            end if;
         end if;
     end process register_A;
     
-	register_B : process (w_slow_clk, w_cycle(1), w_reset)
+	register_B : process (w_slow_clk, w_cycle(2), w_reset)
     begin
         if w_reset = '1' then
             w_operand_B <= x"00";
-        elsif (rising_edge(w_slow_clk)) then
-            if (w_cycle(1) = '1') then
+        elsif (rising_edge(w_cycle(2))) then
                 w_operand_B <= sw(7 downto 0);    -- next state becomes current state
-            end if;
         end if;
     end process register_B;
    
    
-   w_bin <= w_operand_A when w_cycle = "0001" else
-	         w_operand_B when w_cycle = "0010" else
-	         alu_result when w_cycle = "0100" else
+   w_bin <= w_operand_A when w_cycle = "0010" else
+	         w_operand_B when w_cycle = "0100" else
+	         alu_result when w_cycle = "1000" else
 	         x"00";
 	         
     seg <= w_seg when (w_sel = "1110" or w_sel = "1101" or w_sel = "1011") else
