@@ -44,32 +44,33 @@ end top_basys3;
 architecture top_basys3_arch of top_basys3 is
 
     signal w_slow_clk     : std_logic := '0';
-    signal w_cycle        : std_logic_vector(3 downto 0) := x"0";
-    signal w_operand_A    : std_logic_vector(7 downto 0) := x"00";
-    signal w_operand_B    : std_logic_vector(7 downto 0) := x"00";
+    signal w_cycle        : std_logic_vector(3 downto 0);
+    signal w_operand_A    : std_logic_vector(7 downto 0);
+    signal w_operand_B    : std_logic_vector(7 downto 0);
     
-    signal alu_result   : std_logic_vector(7 downto 0):= x"00";
-    signal alu_flags    : std_logic_vector(3 downto 0) := x"0";
+    signal alu_result   : std_logic_vector(7 downto 0);
+    signal alu_flags    : std_logic_vector(3 downto 0);
     
     signal w_sign         : std_logic;
-    signal w_hundreds     : std_logic_vector(3 downto 0) := x"0";
-    signal w_tens         : std_logic_vector(3 downto 0) := x"0";
-    signal w_ones         : std_logic_vector(3 downto 0) := x"0";
+    signal w_hundreds     : std_logic_vector(3 downto 0);
+    signal w_tens         : std_logic_vector(3 downto 0);
+    signal w_ones         : std_logic_vector(3 downto 0);
     
-    signal w_Hex : std_logic_vector(3 downto 0) := x"0";
-    signal w_sel          : std_logic_vector(3 downto 0) := x"0";
-    signal w_seg : std_logic_vector(6 downto 0) := "0000000";  
+    signal w_Hex : std_logic_vector(3 downto 0);
+    signal w_sel          : std_logic_vector(3 downto 0);
+    signal w_seg : std_logic_vector(6 downto 0);  
     signal w_adv : std_logic;
     signal w_reset : std_logic;
     
-    signal w_bin : std_logic_vector (7 downto 0) := x"00";
-    signal w_btnC_prev : std_logic := '0';
+    signal w_bin : std_logic_vector (7 downto 0);
+    signal w_btnC_prev : std_logic;
     
 
     component controller_fsm
         port (
+            i_clk   : in std_logic;
             i_reset : in std_logic;
-            i_adv   : in std_logic;
+            i_btnC  : in std_logic;
             o_cycle : out std_logic_vector(3 downto 0)
         );
     end component;
@@ -141,10 +142,12 @@ begin
 
     fsm_inst : controller_fsm
         port map (
-            i_adv   => w_adv,
-            o_cycle => w_cycle,
-            i_reset => w_reset
+            i_clk   => w_slow_clk,
+            i_reset => w_reset,
+            i_btnC  => btnC,      
+            o_cycle => w_cycle
         );
+
 
     alu_inst : ALU
         port map (
@@ -218,7 +221,7 @@ begin
            "1111111" when w_sign = '0' else  -- assumes 0 = positive
            "0111111";                        -- negative sign
 	       
-	an <= "1111" when w_cycle(3) = '1' else
+	an <= "1111" when w_cycle(0) = '1' else
 	      w_sel;
 	
 	led(3 downto 0) <= w_cycle;
@@ -240,7 +243,6 @@ begin
                 w_btnC_prev <= btnC;
             end if;
     end process;
-	
-    
+
 end top_basys3_arch;
 
